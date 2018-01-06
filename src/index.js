@@ -1,4 +1,4 @@
-const { register, listen } = require('push-receiver');
+const { register, listen } = require('@superhuman/push-receiver');
 const { ipcMain } = require('electron');
 const Config = require('electron-config');
 const {

@@ -7,8 +7,8 @@
   "author": "MatthieuLemoine",
   "license": "MIT",
   "dependencies": {
-    "electron-config": "^1.0.0",
-    "@superhuman/push-receiver": "^1.1.6"
+    "@superhuman/push-receiver": "1.1.7",
+    "electron-config": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^4.9.0",

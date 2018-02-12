@@ -45,9 +45,9 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
 
-"@superhuman/push-receiver@1.1.7":
-  version "1.1.7"
-  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-1.1.7.tgz#14278067bbc9f31180e1e1151b3bcab9af801f35"
+"@superhuman/push-receiver@1.1.8":
+  version "1.1.8"
+  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-1.1.8.tgz#e87c6e9d788dff28667a1c7b909a7db6bbad7a0e"
   dependencies:
     http_ece "^1.0.5"
     long "^3.2.0"

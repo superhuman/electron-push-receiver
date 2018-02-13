@@ -45,10 +45,11 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
 
-"@superhuman/push-receiver@1.1.8":
-  version "1.1.8"
-  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-1.1.8.tgz#e87c6e9d788dff28667a1c7b909a7db6bbad7a0e"
+"@superhuman/push-receiver@1.1.9":
+  version "1.1.9"
+  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-1.1.9.tgz#6d03e29bc7b613382c54d725688617b8567c1cbf"
   dependencies:
+    electron-log "^2.2.14"
     http_ece "^1.0.5"
     long "^3.2.0"
     protobufjs "^6.8.0"
@@ -484,6 +485,10 @@ electron-config@^1.0.0:
   resolved "https://registry.yarnpkg.com/electron-config/-/electron-config-1.0.0.tgz#069d044cc794f04784ae72f12916725d3c8c39af"
   dependencies:
     conf "^1.0.0"
+
+electron-log@^2.2.14:
+  version "2.2.14"
+  resolved "https://registry.yarnpkg.com/electron-log/-/electron-log-2.2.14.tgz#2123319ccb8d70b0db07f0eda57d5823cb42b4b0"
 
 emoji-regex@^6.1.0:
   version "6.5.1"

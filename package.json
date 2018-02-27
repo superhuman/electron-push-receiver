@@ -1,13 +1,13 @@
 {
   "name": "@superhuman/electron-push-receiver",
-  "version": "1.2.13",
+  "version": "1.2.14",
   "description": "A module to receive FCM notifications in electron",
   "main": "src/index.js",
   "repository": "https://github.com/MatthieuLemoine/electron-push-receiver",
   "author": "MatthieuLemoine",
   "license": "MIT",
   "dependencies": {
-    "@superhuman/push-receiver": "1.1.11",
+    "@superhuman/push-receiver": "1.1.12",
     "electron-config": "^1.0.0"
   },
   "devDependencies": {

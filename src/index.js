@@ -111,10 +111,9 @@ function send(channel, arg1) {
 
 // Will be called on new notification
 function onNotification() {
-  return ({ notification, persistentId }) => {
-    const persistentIds = config.get('persistentIds') || [];
+  return ({ client, notification, persistentId }) => {
     // Update persistentId
-    config.set('persistentIds', [...persistentIds, persistentId]);
+    config.set('persistentIds', client.getPersistentIds());
     // Notify the renderer processes that a new notification has been received
     send(NOTIFICATION_RECEIVED, notification);
   };

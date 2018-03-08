@@ -7,7 +7,7 @@
   "author": "MatthieuLemoine",
   "license": "MIT",
   "dependencies": {
-    "@superhuman/push-receiver": "1.1.13",
+    "@superhuman/push-receiver": "1.1.14",
     "electron-config": "^1.0.0"
   },
   "devDependencies": {

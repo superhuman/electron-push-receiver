@@ -55,6 +55,18 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha1-p3c2C1s5oaLlEG+OhY8v0tBgxXA=
 
+"@superhuman/push-receiver@2.1.2":
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-2.1.2.tgz#1777b7a71fcfc35daa398af3b5f951471d7cb289"
+  integrity sha512-4B+ucaDJJMeOYf/dNYeROisFdsKUqIB0VTl9qYNJUG1ddsPOuvNGP5sj+SYVWyglEAmfDNNbsXlfQf6c4tYaBA==
+  dependencies:
+    http_ece "^1.0.5"
+    long "^3.2.0"
+    protobufjs "^6.8.0"
+    request "^2.81.0"
+    request-promise "^4.2.1"
+    uuid "^3.1.0"
+
 "@types/long@^3.0.31":
   version "3.0.32"
   resolved "https://registry.yarnpkg.com/@types/long/-/long-3.0.32.tgz#f4e5af31e9e9b196d8e5fca8a5e2e20aa3d60b69"
@@ -1793,18 +1805,6 @@ punycode@^1.4.1:
   version "1.4.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-1.4.1.tgz#c0d5a63b2718800ad8e1eb0fa5269c84dd41845e"
   integrity sha1-wNWmOycYgArY4esPpSachN1BhF4=
-
-push-receiver@^2.0.2:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/push-receiver/-/push-receiver-2.0.2.tgz#e2e050d5c1d7ab30bba4c99d4036b5fd8a3ba483"
-  integrity sha512-L7e+0F6lt2Mp3ZQjtY8oiFd3DxWSGDLly4zTpoq5YsyHloDnyu9dzbfc5GSZ52xYO9JXgwWSKdRMi8AKpmR3lQ==
-  dependencies:
-    http_ece "^1.0.5"
-    long "^3.2.0"
-    protobufjs "^6.8.0"
-    request "^2.81.0"
-    request-promise "^4.2.1"
-    uuid "^3.1.0"
 
 qs@~6.5.1:
   version "6.5.1"

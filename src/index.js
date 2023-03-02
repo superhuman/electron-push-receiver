@@ -1,4 +1,4 @@
-const { register, listen } = require('push-receiver');
+const { register, listen } = require('@superhuman/push-receiver');
 const { ipcMain } = require('electron');
 const Config = require('electron-config');
 const {
@@ -24,7 +24,7 @@ module.exports = {
 let started = false;
 
 // To be call from the main process
-function setup(webContents) {
+function setup(webContents, { socketTimeout } = {}) {
   // Will be called by the renderer process
   ipcMain.on(START_NOTIFICATION_SERVICE, async (_, senderId) => {
     // Retrieve saved credentials
@@ -50,7 +50,11 @@ function setup(webContents) {
         webContents.send(TOKEN_UPDATED, credentials.fcm.token);
       }
       // Listen for GCM/FCM notifications
-      await listen(Object.assign({}, credentials, { persistentIds }), onNotification(webContents));
+      await listen(
+        Object.assign({}, credentials, { persistentIds }),
+        onNotification(webContents),
+        { socketTimeout }
+      );
       // Notify the renderer process that we are listening for notifications
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
     } catch (e) {

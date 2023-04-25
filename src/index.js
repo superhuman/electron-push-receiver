@@ -24,7 +24,7 @@ module.exports = {
 let started = false;
 
 // To be call from the main process
-function setup(webContents, { socketTimeout } = {}) {
+function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
   // Will be called by the renderer process
   ipcMain.on(START_NOTIFICATION_SERVICE, async (_, senderId) => {
     // Retrieve saved credentials
@@ -53,7 +53,7 @@ function setup(webContents, { socketTimeout } = {}) {
       await listen(
         Object.assign({}, credentials, { persistentIds }),
         onNotification(webContents),
-        { socketTimeout }
+        { socketTimeout, socketKeepAliveDelay },
       );
       // Notify the renderer process that we are listening for notifications
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
@@ -73,7 +73,7 @@ function onNotification(webContents) {
     config.set('persistentIds', [...persistentIds, persistentId]);
     // Notify the renderer process that a new notification has been received
     // And check if window is not destroyed for darwin Apps
-    if(!webContents.isDestroyed()){
+    if (!webContents.isDestroyed()) {
       webContents.send(NOTIFICATION_RECEIVED, notification);
     }
   };

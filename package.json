@@ -9,7 +9,7 @@
   "types": "src/electron-push-receiver.d.ts",
   "dependencies": {
     "electron-config": "^1.0.0",
-    "@superhuman/push-receiver": "2.1.3"
+    "@superhuman/push-receiver": "2.1.4"
   },
   "devDependencies": {
     "eslint": "^4.9.0",

@@ -25,27 +25,30 @@ let started = false;
 
 // To be call from the main process
 function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
-  // Will be called by the renderer process
-  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, senderId) => {
-    // Retrieve saved credentials
+  // Config shape:
+  // {
+  //   firebase: {
+  //     apiKey: string
+  //     appID: string
+  //     projectID: string
+  //   },
+  //   vapidKey?: string
+  // }
+  ipcMain.on(START_NOTIFICATION_SERVICE, async (_, fcmConfig) => {
     let credentials = config.get('credentials');
-    // Retrieve saved senderId
-    const savedSenderId = config.get('senderId');
+    const savedApiKey = config.get('fcmApiKey');
     if (started) {
       webContents.send(NOTIFICATION_SERVICE_STARTED, (credentials.fcm || {}).token);
       return;
     }
-    started = true;
+
     try {
       // Retrieve saved persistentId : avoid receiving all already received notifications on start
       const persistentIds = config.get('persistentIds') || [];
-      // Register if no credentials or if senderId has changed
-      if (!credentials || savedSenderId !== senderId) {
-        credentials = await register(senderId);
-        // Save credentials for later use
+      if (!credentials || savedApiKey !== fcmConfig.firebase.apiKey) {
+        credentials = await register(fcmConfig);
         config.set('credentials', credentials);
-        // Save senderId
-        config.set('senderId', senderId);
+        config.set('fcmApiKey', fcmConfig.firebase.apiKey);
         // Notify the renderer process that the FCM token has changed
         webContents.send(TOKEN_UPDATED, credentials.fcm.token);
       }
@@ -57,6 +60,7 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
       );
       // Notify the renderer process that we are listening for notifications
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
+      started = true
     } catch (e) {
       console.error('PUSH_RECEIVER:::Error while starting the service', e);
       // Forward error to the renderer process

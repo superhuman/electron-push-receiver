@@ -25,15 +25,18 @@ let started = false;
 
 // To be call from the main process
 function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
-  // Config shape:
-  // {
-  //   firebase: {
-  //     apiKey: string
-  //     appID: string
-  //     projectID: string
-  //   },
-  //   vapidKey?: string
-  // }
+  /**
+   * @param {string} event
+   * @param {(event: Electron.IpcMainEvent, fcmConfig: {
+   *   firebase: {
+   *     apiKey: string,
+   *     appID: string,
+   *     projectID: string
+   *   },
+   *   vapidKey?: string
+   * }) => void} callback
+   * @returns {void}
+   */
   ipcMain.on(START_NOTIFICATION_SERVICE, async (_, fcmConfig) => {
     let credentials = config.get('credentials');
     const savedApiKey = config.get('fcmApiKey');
@@ -60,7 +63,7 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
       );
       // Notify the renderer process that we are listening for notifications
       webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
-      started = true
+      started = true;
     } catch (e) {
       console.error('PUSH_RECEIVER:::Error while starting the service', e);
       // Forward error to the renderer process

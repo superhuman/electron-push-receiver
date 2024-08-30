@@ -44,7 +44,14 @@ ipcRenderer.on(TOKEN_UPDATED, (_, token) => // Send token);
 // Display notification
 ipcRenderer.on(ON_NOTIFICATION_RECEIVED, (_, notification) => // display notification);
 // Start service
-ipcRenderer.send(START_NOTIFICATION_SERVICE, senderId);
+ipcRenderer.send(START_NOTIFICATION_SERVICE, {
+  firebase: {
+    apiKey: "XXxxXxX0x0x-Xxxx0-X0Xxxxx_0xxXx_XX0xXxX",
+    appID: "1:000000000000:android:xxx0xxxx0000x000xxx000",
+    projectID: "the-app-name"
+  },
+  vapidKey: '' // optional
+});
 ```
 
 ## Example

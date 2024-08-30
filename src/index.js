@@ -20,10 +20,9 @@ module.exports = {
   setup,
 };
 
-// To be sure that start is called only once
-let started = false;
+let startNotificationPromise
+let started = false
 
-// To be call from the main process
 function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
   /**
    * @param {string} event
@@ -38,6 +37,10 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
    * @returns {void}
    */
   ipcMain.on(START_NOTIFICATION_SERVICE, async (_, fcmConfig) => {
+    if (startNotificationPromise) {
+      await startNotificationPromise
+    }
+
     let credentials = config.get('credentials');
     const savedApiKey = config.get('fcmApiKey');
     if (started) {
@@ -45,30 +48,35 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
       return;
     }
 
-    try {
-      // Retrieve saved persistentId : avoid receiving all already received notifications on start
-      const persistentIds = config.get('persistentIds') || [];
-      if (!credentials || savedApiKey !== fcmConfig.firebase.apiKey) {
-        credentials = await register(fcmConfig);
-        config.set('credentials', credentials);
-        config.set('fcmApiKey', fcmConfig.firebase.apiKey);
-        // Notify the renderer process that the FCM token has changed
-        webContents.send(TOKEN_UPDATED, credentials.fcm.token);
+    startNotificationPromise = new Promise(async (resolve, reject) => {
+      try {
+        // Retrieve saved persistentId : avoid receiving all already received notifications on start
+        const persistentIds = config.get('persistentIds') || [];
+        if (!credentials || savedApiKey !== fcmConfig.firebase.apiKey) {
+          credentials = await register(fcmConfig);
+          config.set('credentials', credentials);
+          config.set('fcmApiKey', fcmConfig.firebase.apiKey);
+          // Notify the renderer process that the FCM token has changed
+          webContents.send(TOKEN_UPDATED, credentials.fcm.token);
+        }
+        // Listen for GCM/FCM notifications
+        await listen(
+          Object.assign({}, credentials, { persistentIds }),
+          onNotification(webContents),
+          { socketTimeout, socketKeepAliveDelay },
+        );
+        // Notify the renderer process that we are listening for notifications
+        webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
+        started = true;
+      } catch (e) {
+        console.error('PUSH_RECEIVER:::Error while starting the service', e);
+        // Forward error to the renderer process
+        webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
+      } finally {
+        resolve()
+        startNotificationPromise = null
       }
-      // Listen for GCM/FCM notifications
-      await listen(
-        Object.assign({}, credentials, { persistentIds }),
-        onNotification(webContents),
-        { socketTimeout, socketKeepAliveDelay },
-      );
-      // Notify the renderer process that we are listening for notifications
-      webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
-      started = true;
-    } catch (e) {
-      console.error('PUSH_RECEIVER:::Error while starting the service', e);
-      // Forward error to the renderer process
-      webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
-    }
+    })
   });
 }
 

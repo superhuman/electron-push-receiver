@@ -1,6 +1,6 @@
 {
   "name": "@superhuman/electron-push-receiver",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "A module to receive FCM notifications in electron",
   "main": "src/index.js",
   "repository": "https://github.com/MatthieuLemoine/electron-push-receiver",
@@ -9,7 +9,7 @@
   "types": "src/electron-push-receiver.d.ts",
   "dependencies": {
     "electron-config": "^1.0.0",
-    "@superhuman/push-receiver": "2.1.4"
+    "@superhuman/push-receiver": "2.1.5"
   },
   "devDependencies": {
     "eslint": "^4.9.0",

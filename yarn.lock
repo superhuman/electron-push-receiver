@@ -89,10 +89,10 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha1-p3c2C1s5oaLlEG+OhY8v0tBgxXA=
 
-"@superhuman/push-receiver@2.1.5":
-  version "2.1.5"
-  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-2.1.5.tgz#c6a447fa00e7ec35683cc1e7cb3fcedb101e9bae"
-  integrity sha512-2HiEdtN+wXKxrJvNg3sP4Hoy2rW6dyDAbFpY7yA8tQFdWuzVuYyVghTTpRa/1RvShHlGADk85Ws8d/lLfGaapw==
+"@superhuman/push-receiver@2.1.6":
+  version "2.1.6"
+  resolved "https://registry.yarnpkg.com/@superhuman/push-receiver/-/push-receiver-2.1.6.tgz#c562d6ff8bc49dbec94ee6da7b1e0935d982716f"
+  integrity sha512-aDKuQn7ECH1SeMmKOoJGQRjDBP2cZnIx8vs+DkKdGtWl4bOiYVOYFHd5npwHS6RBCLHsrSrKiFlJQQL0j7T9nA==
   dependencies:
     "@cypress/request" "3.0.6"
     "@cypress/request-promise" "5.0.0"

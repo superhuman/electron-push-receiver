@@ -20,10 +20,10 @@ module.exports = {
   setup,
 };
 
-let startNotificationPromise
-let started = false
+let startNotificationPromise;
+let started = false;
 
-function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
+function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {}) {
   /**
    * @param {string} event
    * @param {(event: Electron.IpcMainEvent, fcmConfig: {
@@ -38,7 +38,7 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
    */
   ipcMain.on(START_NOTIFICATION_SERVICE, async (_, fcmConfig) => {
     if (startNotificationPromise) {
-      await startNotificationPromise
+      await startNotificationPromise;
     }
 
     let credentials = config.get('credentials');
@@ -48,7 +48,7 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
       return;
     }
 
-    startNotificationPromise = new Promise(async (resolve, reject) => {
+    startNotificationPromise = new Promise(async (resolve) => {
       try {
         // Retrieve saved persistentId : avoid receiving all already received notifications on start
         const persistentIds = config.get('persistentIds') || [];
@@ -60,11 +60,14 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
           webContents.send(TOKEN_UPDATED, credentials.fcm.token);
         }
         // Listen for GCM/FCM notifications
-        await listen(
+        const client = await listen(
           Object.assign({}, credentials, { persistentIds }),
           onNotification(webContents),
           { socketTimeout, socketKeepAliveDelay },
         );
+        if (onError) {
+          client.on('error', onError);
+        }
         // Notify the renderer process that we are listening for notifications
         webContents.send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
         started = true;
@@ -73,10 +76,10 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay } = {}) {
         // Forward error to the renderer process
         webContents.send(NOTIFICATION_SERVICE_ERROR, e.message);
       } finally {
-        resolve()
-        startNotificationPromise = null
+        resolve();
+        startNotificationPromise = null;
       }
-    })
+    });
   });
 }
 

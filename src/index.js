@@ -3,6 +3,7 @@ const { ipcMain } = require('electron');
 const Config = require('electron-config');
 const {
   START_NOTIFICATION_SERVICE,
+  INVALIDATE_REGISTRATION,
   NOTIFICATION_SERVICE_STARTED,
   NOTIFICATION_SERVICE_ERROR,
   NOTIFICATION_RECEIVED,
@@ -14,6 +15,7 @@ const config = new Config();
 
 module.exports = {
   START_NOTIFICATION_SERVICE,
+  INVALIDATE_REGISTRATION,
   NOTIFICATION_SERVICE_STARTED,
   NOTIFICATION_SERVICE_ERROR,
   NOTIFICATION_RECEIVED,
@@ -23,6 +25,7 @@ module.exports = {
 
 let startNotificationPromise;
 let started = false;
+let currentClient;
 
 function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {}) {
   const send = (channel, payload) => {
@@ -73,6 +76,7 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
         if (onError) {
           client.on('error', onError);
         }
+        currentClient = client;
         // Notify the renderer process that we are listening for notifications
         send(NOTIFICATION_SERVICE_STARTED, credentials.fcm.token);
         started = true;
@@ -85,6 +89,22 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
         startNotificationPromise = null;
       }
     });
+  });
+
+  // Forces the next START_NOTIFICATION_SERVICE to mint a fresh token, e.g. after the backend
+  // rejects the current one - the `apiKey` check above alone won't catch that. `handle`, not
+  // `on`, so the caller can await completion before immediately calling START_NOTIFICATION_SERVICE.
+  ipcMain.handle(INVALIDATE_REGISTRATION, async () => {
+    if (startNotificationPromise) {
+      await startNotificationPromise;
+    }
+    if (currentClient) {
+      currentClient.destroy();
+      currentClient = undefined;
+    }
+    config.delete('credentials');
+    config.delete('fcmApiKey');
+    started = false;
   });
 }
 

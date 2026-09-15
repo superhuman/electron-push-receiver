@@ -9,4 +9,6 @@ module.exports = {
   NOTIFICATION_RECEIVED: 'PUSH_RECEIVER:::NOTIFICATION_RECEIVED',
   // Event sent to the renderer processs when the FCM token has been updated
   TOKEN_UPDATED: 'PUSH_RECEIVER:::TOKEN_UPDATED',
+  // Sent from the renderer to discard the stored registration (e.g. backend rejected it)
+  INVALIDATE_REGISTRATION: 'PUSH_RECEIVER:::INVALIDATE_REGISTRATION',
 };

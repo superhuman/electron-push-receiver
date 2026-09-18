@@ -6,6 +6,7 @@ interface SetupOptions {
 
 interface ElectronPushReceiver {
     START_NOTIFICATION_SERVICE: string;
+    INVALIDATE_REGISTRATION: string;
     NOTIFICATION_SERVICE_STARTED: string;
     NOTIFICATION_SERVICE_ERROR: string;
     NOTIFICATION_RECEIVED: string;

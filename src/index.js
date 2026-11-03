@@ -1,6 +1,6 @@
 const { register, listen } = require('@superhuman/push-receiver');
 const { ipcMain } = require('electron');
-const Config = require('electron-config');
+const Store = require('electron-store');
 const {
   START_NOTIFICATION_SERVICE,
   INVALIDATE_REGISTRATION,
@@ -10,8 +10,6 @@ const {
   TOKEN_UPDATED,
 } = require('./constants');
 const { pruneStale } = require('./persistent_ids');
-
-const config = new Config();
 
 module.exports = {
   START_NOTIFICATION_SERVICE,
@@ -23,9 +21,39 @@ module.exports = {
   setup,
 };
 
+let config;
 let startNotificationPromise;
 let started = false;
 let currentClient;
+
+// Constructed on first `setup()` rather than at require time: this module is loaded while the
+// host app's main bundle evaluates, before it can report errors, so any filesystem failure there
+// kills the launch. The store shares `config.json` with the app's own stores, so an unreadable
+// file is left for them to handle and push falls back to an in-memory store for this session.
+function getConfig(reportError) {
+  if (!config) {
+    try {
+      config = new Store();
+    } catch (e) {
+      reportError(e);
+      config = memoryStore();
+    }
+  }
+  return config;
+}
+
+function memoryStore() {
+  const data = {};
+  return {
+    get: key => data[key],
+    set: (key, value) => {
+      data[key] = value;
+    },
+    delete: (key) => {
+      delete data[key];
+    },
+  };
+}
 
 function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {}) {
   const send = (channel, payload) => {
@@ -33,6 +61,13 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
       webContents.send(channel, payload);
     }
   };
+  const reportError = (e) => {
+    console.error('PUSH_RECEIVER:::', e);
+    if (onError) {
+      onError(e);
+    }
+  };
+  const store = getConfig(reportError);
   /**
    * @param {string} event
    * @param {(event: Electron.IpcMainEvent, fcmConfig: {
@@ -50,8 +85,8 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
       await startNotificationPromise;
     }
 
-    let credentials = config.get('credentials');
-    const savedApiKey = config.get('fcmApiKey');
+    let credentials = store.get('credentials');
+    const savedApiKey = store.get('fcmApiKey');
     if (started) {
       send(NOTIFICATION_SERVICE_STARTED, (credentials.fcm || {}).token);
       return;
@@ -59,18 +94,18 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
 
     startNotificationPromise = new Promise(async (resolve) => {
       try {
-        const persistentIds = pruneStale(config.get('persistentIds') || []);
+        const persistentIds = pruneStale(store.get('persistentIds') || []);
         if (!credentials || savedApiKey !== fcmConfig.firebase.apiKey) {
           credentials = await register(fcmConfig);
-          config.set('credentials', credentials);
-          config.set('fcmApiKey', fcmConfig.firebase.apiKey);
+          store.set('credentials', credentials);
+          store.set('fcmApiKey', fcmConfig.firebase.apiKey);
           // Notify the renderer process that the FCM token has changed
           send(TOKEN_UPDATED, credentials.fcm.token);
         }
         // Listen for GCM/FCM notifications
         const client = await listen(
           Object.assign({}, credentials, { persistentIds }),
-          onNotification(send),
+          onNotification(store, send, reportError),
           { socketTimeout, socketKeepAliveDelay },
         );
         if (onError) {
@@ -102,17 +137,25 @@ function setup(webContents, { socketTimeout, socketKeepAliveDelay, onError } = {
       currentClient.destroy();
       currentClient = undefined;
     }
-    config.delete('credentials');
-    config.delete('fcmApiKey');
-    started = false;
+    try {
+      store.delete('credentials');
+      store.delete('fcmApiKey');
+    } finally {
+      started = false;
+    }
   });
 }
 
-// Will be called on new notification
-function onNotification(send) {
+// Will be called on new notification. The push client already dedupes received ids in memory,
+// so a failed save costs at most a redelivered push after restart - never drop this one for it.
+function onNotification(store, send, reportError) {
   return ({ notification, persistentId }) => {
-    const persistentIds = pruneStale(config.get('persistentIds') || []);
-    config.set('persistentIds', [...persistentIds, persistentId]);
     send(NOTIFICATION_RECEIVED, notification);
+    try {
+      const persistentIds = pruneStale(store.get('persistentIds') || []);
+      store.set('persistentIds', [...persistentIds, persistentId]);
+    } catch (e) {
+      reportError(e);
+    }
   };
 }

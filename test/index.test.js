@@ -7,11 +7,13 @@ let mockUserDataDir;
 
 jest.mock('electron', () => ({
   ipcMain: { on: jest.fn(), handle: jest.fn() },
-  app: { getPath: () => mockUserDataDir },
+  app: { getPath: () => mockUserDataDir, getVersion: () => '1.0.0' },
 }), { virtual: true });
 jest.mock('@superhuman/push-receiver');
 
 const {
+  START_NOTIFICATION_SERVICE,
+  INVALIDATE_REGISTRATION,
   NOTIFICATION_SERVICE_STARTED,
   NOTIFICATION_RECEIVED,
 } = require('../src/constants');
@@ -23,8 +25,27 @@ function load() {
   jest.resetModules();
   const { ipcMain } = require('electron');
   const pushReceiver = require('@superhuman/push-receiver');
+  const Store = require('electron-store');
   const index = require('../src/index');
-  return { index, ipcMain, pushReceiver };
+  return {
+    index,
+    ipcMain,
+    pushReceiver,
+    Store,
+  };
+}
+
+// electron-store registers its own `ipcMain.on` listener, so look handlers up by channel.
+function handlerFor(mockFn, channel) {
+  return mockFn.mock.calls.find(([registered]) => registered === channel)[1];
+}
+
+function startHandlerFor(ipcMain) {
+  return handlerFor(ipcMain.on, START_NOTIFICATION_SERVICE);
+}
+
+function invalidateHandlerFor(ipcMain) {
+  return handlerFor(ipcMain.handle, INVALIDATE_REGISTRATION);
 }
 
 function fakeWebContents() {
@@ -65,16 +86,27 @@ function readConfig() {
   return JSON.parse(fs.readFileSync(configPath(), 'utf8'));
 }
 
-async function startService({ index, ipcMain, pushReceiver }, webContents, fcmConfig = FCM_CONFIG) {
+function eppermError() {
+  return Object.assign(new Error("EPERM: operation not permitted, rename 'config.json.123'"), {
+    code: 'EPERM',
+  });
+}
+
+async function startService(
+  { index, ipcMain, pushReceiver },
+  webContents,
+  fcmConfig = FCM_CONFIG,
+  options = undefined,
+) {
   const client = new EventEmitter();
   client.destroy = jest.fn();
   pushReceiver.listen.mockImplementation(async (credentials, onNotification) => {
     client.notify = onNotification;
+    client.on('ON_NOTIFICATION_RECEIVED', onNotification);
     return client;
   });
-  index.setup(webContents);
-  const handler = ipcMain.on.mock.calls[0][1];
-  await handler(null, fcmConfig);
+  index.setup(webContents, options);
+  await startHandlerFor(ipcMain)(null, fcmConfig);
   return client;
 }
 
@@ -138,7 +170,7 @@ describe('index', () => {
     expect(registerCallCount).toBe(1);
 
     // Simulate a reload/account-switch: same handler, same fcmConfig, still `started`.
-    const startHandler = env.ipcMain.on.mock.calls[0][1];
+    const startHandler = startHandlerFor(env.ipcMain);
     await startHandler(null, FCM_CONFIG);
 
     // The bug: reload alone never mints a new token, good or bad.
@@ -160,12 +192,12 @@ describe('index', () => {
 
     // Unlike START_NOTIFICATION_SERVICE (`on`), this is `handle`, so it's awaitable - the caller
     // needs to know invalidation finished before immediately starting again.
-    const invalidateHandler = env.ipcMain.handle.mock.calls[0][1];
+    const invalidateHandler = invalidateHandlerFor(env.ipcMain);
     await invalidateHandler();
     expect(client.destroy).toHaveBeenCalled();
 
     webContents.send.mockClear();
-    const startHandler = env.ipcMain.on.mock.calls[0][1];
+    const startHandler = startHandlerFor(env.ipcMain);
     await startHandler(null, FCM_CONFIG);
     await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
 
@@ -188,8 +220,8 @@ describe('index', () => {
     const webContents = fakeWebContents();
 
     env.index.setup(webContents);
-    const startHandler = env.ipcMain.on.mock.calls[0][1];
-    const invalidateHandler = env.ipcMain.handle.mock.calls[0][1];
+    const startHandler = startHandlerFor(env.ipcMain);
+    const invalidateHandler = invalidateHandlerFor(env.ipcMain);
 
     // Fire the first start but don't wait for it - then invalidate immediately. If invalidate
     // didn't wait for the in-flight start, `started` could land `true` right after, and the next
@@ -203,5 +235,115 @@ describe('index', () => {
 
     expect(registerCallCount).toBe(2);
     expect(webContents.send).toHaveBeenCalledWith(NOTIFICATION_SERVICE_STARTED, 'token-2');
+  });
+
+  it('does not create config.json when required or set up', () => {
+    const env = load();
+    expect(fs.existsSync(configPath())).toBe(false);
+
+    env.index.setup(fakeWebContents());
+    expect(fs.readdirSync(mockUserDataDir)).toEqual([]);
+  });
+
+  it('does not rewrite an existing config.json when required or set up', () => {
+    const contents = JSON.stringify({ fcmApiKey: 'api-key' }, null, '\t');
+    fs.writeFileSync(configPath(), contents);
+    const past = new Date(NOW - (60 * 1000));
+    fs.utimesSync(configPath(), past, past);
+    const { mtimeMs } = fs.statSync(configPath());
+
+    const env = load();
+    expect(fs.statSync(configPath()).mtimeMs).toBe(mtimeMs);
+
+    env.index.setup(fakeWebContents());
+    expect(fs.statSync(configPath()).mtimeMs).toBe(mtimeMs);
+    expect(fs.readFileSync(configPath(), 'utf8')).toBe(contents);
+    expect(fs.readdirSync(mockUserDataDir)).toEqual(['config.json']);
+  });
+
+  it('reads credentials, fcmApiKey and persistentIds from a config.json written by electron-config', async () => {
+    const freshId = idWithAge(60 * 1000);
+    const credentials = {
+      keys: { privateKey: 'private', publicKey: 'public', authSecret: 'secret' },
+      gcm: { androidId: '1', securityToken: '2', token: 'gcm-token' },
+      fcm: { token: 'saved-token', pushSet: 'push-set' },
+    };
+    fs.writeFileSync(
+      configPath(),
+      JSON.stringify({ credentials, fcmApiKey: 'api-key', persistentIds: [freshId] }, null, '\t'),
+    );
+    const env = load();
+    const webContents = fakeWebContents();
+    await startService(env, webContents);
+    await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
+
+    expect(env.pushReceiver.register).not.toHaveBeenCalled();
+    expect(env.pushReceiver.listen.mock.calls[0][0])
+      .toEqual(Object.assign({}, credentials, { persistentIds: [freshId] }));
+    expect(webContents.send).toHaveBeenCalledWith(NOTIFICATION_SERVICE_STARTED, 'saved-token');
+  });
+
+  it('still forwards a push and reports the error when saving its id fails', async () => {
+    writeConfig({ credentials: { fcm: { token: 'saved-token' } }, fcmApiKey: 'api-key' });
+    const env = load();
+    const onError = jest.fn();
+    const webContents = fakeWebContents();
+    const client = await startService(env, webContents, FCM_CONFIG, { onError });
+    await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
+
+    const error = eppermError();
+    jest.spyOn(env.Store.prototype, 'set').mockImplementation(() => {
+      throw error;
+    });
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const notification = { title: 'hi' };
+    const emit = () => client.emit('ON_NOTIFICATION_RECEIVED', {
+      notification,
+      persistentId: idWithAge(1000),
+    });
+
+    expect(emit).not.toThrow();
+    expect(webContents.send).toHaveBeenCalledWith(NOTIFICATION_RECEIVED, notification);
+    expect(onError).toHaveBeenCalledWith(error);
+  });
+
+  it('falls back to an in-memory store and reports the error when config.json is not valid JSON', async () => {
+    fs.writeFileSync(configPath(), '{not json');
+    const env = load();
+    const onError = jest.fn();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    env.pushReceiver.register.mockResolvedValue({ fcm: { token: 'new-token' }, gcm: {} });
+    const webContents = fakeWebContents();
+    const client = await startService(env, webContents, FCM_CONFIG, { onError });
+    await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
+    const notification = { title: 'hi' };
+    client.notify({ notification, persistentId: idWithAge(1000) });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0].name).toBe('SyntaxError');
+    expect(webContents.send).toHaveBeenCalledWith(NOTIFICATION_SERVICE_STARTED, 'new-token');
+    expect(webContents.send).toHaveBeenCalledWith(NOTIFICATION_RECEIVED, notification);
+    expect(fs.readFileSync(configPath(), 'utf8')).toBe('{not json');
+  });
+
+  it('rejects INVALIDATE_REGISTRATION when clearing fails but still tears down the client', async () => {
+    writeConfig({ credentials: { fcm: { token: 'saved-token' } }, fcmApiKey: 'api-key' });
+    const env = load();
+    const webContents = fakeWebContents();
+    const client = await startService(env, webContents);
+    await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
+
+    const error = eppermError();
+    jest.spyOn(env.Store.prototype, 'delete').mockImplementationOnce(() => {
+      throw error;
+    });
+    await expect(invalidateHandlerFor(env.ipcMain)()).rejects.toBe(error);
+    expect(client.destroy).toHaveBeenCalled();
+
+    // `started` was reset, so the next start listens again instead of resending the cached token.
+    webContents.send.mockClear();
+    await startHandlerFor(env.ipcMain)(null, FCM_CONFIG);
+    await waitFor(() => wasSentWith(webContents, NOTIFICATION_SERVICE_STARTED));
+    expect(env.pushReceiver.listen).toHaveBeenCalledTimes(2);
   });
 });
